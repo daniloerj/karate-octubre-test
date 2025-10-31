@@ -1,0 +1,10 @@
+{
+  "newAlbum": {
+    "userId": 1,
+    "title": "Test Album Title"
+  },
+  "updateAlbum": {
+    "userId": 1,
+    "title": "Updated Album Title"
+  }
+}
