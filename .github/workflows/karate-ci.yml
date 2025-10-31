@@ -10,9 +10,11 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: write    # Necesario para la configuración de Pages
 
+# Ensure one workflow per ref/PR
 concurrency:
-  group: ci-karate-${{ github.ref }}
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -73,14 +75,35 @@ jobs:
           retention-days: 30
           name: github-pages-${{ github.run_number }}
 
+  configure-pages:
+    name: Configure GitHub Pages
+    runs-on: ubuntu-latest
+    # Solo ejecutar en la rama principal o cuando se solicite manualmente
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        run: |
+          # Verificar si Pages está habilitado
+          gh api repos/${{ github.repository }}/pages > /dev/null 2>&1 || {
+            echo "Habilitando GitHub Pages..."
+            gh api --method POST repos/${{ github.repository }}/pages \
+              -f build_type='workflow' \
+              -f source='{"branch":"gh-pages","path":"/"}' || true
+          }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   deploy-pages:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     name: Deploy Karate report to GitHub Pages
-    needs: test
+    needs: [test, configure-pages]
     runs-on: ubuntu-latest
-    # Solo ejecutar si el job anterior completó (success() o failure())
+    # Solo ejecutar si los jobs anteriores completaron
     if: always() && (needs.test.result == 'success' || needs.test.result == 'failure')
     steps:
       - name: Deploy to GitHub Pages
