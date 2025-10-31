@@ -71,9 +71,10 @@ jobs:
 
       - name: Upload Pages artifact (Karate report)
         if: always()
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v4
         with:
           path: site
+          retention-days: 30
 
   deploy-pages:
     name: Deploy Karate report to GitHub Pages
@@ -81,7 +82,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v4
 
 # Notes:
 # - The workflow runs on pull_request to develop/main and can be triggered manually.
