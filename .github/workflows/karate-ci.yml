@@ -1,0 +1,91 @@
+name: CI - Karate Tests
+
+on:
+  pull_request:
+    branches: [ 'develop', 'main' ]
+  workflow_dispatch: {}
+
+# Needed permissions for Pages deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: ci-karate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Run tests and prepare report
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Run Maven tests (Karate)
+        run: mvn -B test
+
+      - name: Show Karate report folders (debug)
+        if: always()
+        run: |
+          echo "=== listing target ==="
+          ls -la target || true
+          echo "=== listing karate reports ==="
+          ls -la target | grep karate || true
+          ls -la target/karate-reports* || true
+
+      - name: Prepare Pages site from Karate reports
+        if: always()
+        run: |
+          set -e
+          mkdir -p site
+          # copy latest standard folder if present
+          if [ -d target/karate-reports ]; then
+            cp -r target/karate-reports/* site/ || true
+          fi
+          # copy the latest timestamped karate-reports_* folder if present
+          latest=$(ls -1d target/karate-reports_* 2>/dev/null | sort | tail -n1 || true)
+          if [ -n "$latest" ] && [ -d "$latest" ]; then
+            cp -r "$latest"/* site/ || true
+          fi
+          # create index if missing
+          if [ ! -f site/index.html ]; then
+            echo "<html><body><h1>Karate reports</h1><p>No report found</p></body></html>" > site/index.html
+          fi
+
+      - name: Upload Pages artifact (Karate report)
+        if: always()
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: site
+
+  deploy-pages:
+    name: Deploy Karate report to GitHub Pages
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v1
+
+# Notes:
+# - The workflow runs on pull_request to develop/main and can be triggered manually.
+# - It runs `mvn test`, collects the Karate generated HTML report(s) from `target/karate-reports*`,
+#   prepares a `site/` folder and uploads it as a Pages artifact, then deploys via the Pages action.
+# - Ensure GitHub Pages is enabled in the repository settings (the action will publish the artifact to Pages).
+# - For PRs from forks, GITHUB_TOKEN permissions are limited; Pages deployment may not run for forked PRs unless configured.
