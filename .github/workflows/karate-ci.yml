@@ -28,15 +28,10 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
+          cache: 'maven'
 
-      - name: Cache Maven packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
+      # Cache de Maven ya está configurado en el paso de setup-java con cache: 'maven'
 
       - name: Run Maven tests (Karate)
         run: mvn -B test
