@@ -65,19 +65,29 @@ jobs:
           fi
 
       - name: Upload Pages artifact (Karate report)
-        if: always()
+        # Solo subir si los tests se ejecutaron (success() o failure())
+        if: success() || failure()
         uses: actions/upload-pages-artifact@v4
         with:
           path: site
           retention-days: 30
+          name: github-pages-${{ github.run_number }}
 
   deploy-pages:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     name: Deploy Karate report to GitHub Pages
     needs: test
     runs-on: ubuntu-latest
+    # Solo ejecutar si el job anterior completó (success() o failure())
+    if: always() && (needs.test.result == 'success' || needs.test.result == 'failure')
     steps:
       - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_number }}
 
 # Notes:
 # - The workflow runs on pull_request to develop/main and can be triggered manually.
